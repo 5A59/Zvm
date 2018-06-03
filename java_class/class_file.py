@@ -48,6 +48,7 @@ class ConstantPoolBaseInfo(object):
         self.tag = None  # u1
 
 
+# ============= 以下是常量池数据结构 ==============
 class ClassInfo(ConstantPoolBaseInfo):
     def __init__(self):
         super(ClassInfo, self).__init__()
@@ -246,6 +247,8 @@ class InvokeDynamicInfo(ConstantPoolBaseInfo):
     def get_size():
         return 5
 
+# ============= 以上是常量池数据结构 ==============
+
 
 class FieldInfo(object):
     def __init__(self):
@@ -280,6 +283,7 @@ class BaseAttribute(object):
     ATTR_CONSTANT_VALUE = 'ConstantValue'
     ATTR_CODE = 'Code'
     ATTR_SOURCE_FILE = 'SourceFile'
+    ATTR_SIGNATURE = 'Signature'
 
     def __init__(self):
         self.attribute_name_index = None  # u2  对常量池的索引 utf8_info
@@ -333,3 +337,12 @@ class SourceFileAttribute(BaseAttribute):
 
     def __str__(self):
         return 'SOURCE_FILE_ATTR{sourcefile_index: %s}' % self.sourcefile_index
+
+
+class SignatureAttribute(BaseAttribute):
+    def __init__(self):
+        super(SignatureAttribute, self).__init__()
+        self.signature_index = None
+
+    def __str__(self):
+        return 'SIGNATURE_ATTR{signature_index: %s}' % self.signature_index

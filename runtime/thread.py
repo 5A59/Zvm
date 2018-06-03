@@ -1,7 +1,7 @@
 # coding=utf-8
 
 from base.stack import Stack
-from java_class import class_file, class_parser
+from base.utils.print_utils import print_msg
 import struct
 
 
@@ -10,23 +10,67 @@ class Thread(object):
         self.pc = 0
         self.stack = JavaStack()
 
+    @staticmethod
+    def new_thread():
+        return Thread()
+
+    def add_frame(self, frame):
+        self.stack.add_frame(frame)
+
+    def top_frame(self):
+        return self.stack.top_frame()
+
+    def pop_frame(self):
+        self.stack.pop_frame()
+
+    def has_frame(self):
+        return self.stack.has_frame()
+
 
 class JavaStack(object):
     def __init__(self):
         self.__frames = []
 
+    def has_frame(self):
+        return len(self.__frames) > 0
+
+    def add_frame(self, frame):
+        self.__frames.append(frame)
+
+    def pop_frame(self):
+        self.__frames.pop()
+
+    def top_frame(self):
+        return self.__frames[len(self.__frames) - 1]
+
 
 class Frame(object):
-    def __init__(self, local_var_size, operand_stack_size):
-        self.local_vars = LocalVars(local_var_size)
-        self.operand_stack = OperandStack(operand_stack_size)
+    def __init__(self, thread, method):
+        self.pc = 0
+        self.thread = thread
+        self.method = method
+        self.max_stack = method.max_stack
+        self.max_locals = method.max_locals
+        self.operand_stack = OperandStack(self.max_stack)
+        self.local_vars = LocalVars(self.max_locals)
         self.dynamic_linking = DynamicLinking()
+
+    def print_cur_state(self):
+        print_msg('max_stack: ' + str(self.max_stack))
+        print_msg('max_locals: ' + str(self.max_locals))
+        print_msg('operand_stack: ' + str(self.operand_stack.size()))
+        print_msg(self.operand_stack)
+        print_msg('local_vars: ' + str(self.local_vars.size()))
+        print_msg(self.local_vars)
 
 
 class Slot(object):
     def __init__(self):
         self.num = None
         self.ref = None
+
+    def __str__(self):
+        return str(self.num)
 
 
 # 局部变量表
@@ -36,6 +80,19 @@ class LocalVars(object):
         self.__items = [None] * size
         for i in range(size):
             self.__items[i] = Slot()
+
+    def __str__(self):
+        s = ''
+        for i in self.__items:
+            s += str(i)
+            s += '\n'
+        return s
+
+    def size(self):
+        return self.__size
+
+    def print_state(self):
+        print_msg(self.__items)
 
     def test_get_items(self):
         return self.__items
@@ -58,7 +115,7 @@ class LocalVars(object):
         self.__add_num_to_item(index, struct.pack('i', data))
 
     def get_int(self, index):
-        return struct.unpack('i', self.__get_num_from_item(index))
+        return struct.unpack('i', self.__get_num_from_item(index))[0]
 
     def add_long(self, index, data):
         packed = struct.pack('q', data)
@@ -68,14 +125,14 @@ class LocalVars(object):
     def get_long(self, index):
         first = self.__get_num_from_item(index)
         last = self.__get_num_from_item(index + 1)
-        return struct.unpack('q', first + last)
+        return struct.unpack('q', first + last)[0]
 
     # TODO: python3 里 float 也是 8 字节，float 精度存疑
     def add_float(self, index, data):
         self.__add_num_to_item(index, struct.pack('f', data))
 
     def get_float(self, index):
-        return struct.unpack('f', self.__get_num_from_item(index))
+        return struct.unpack('f', self.__get_num_from_item(index))[0]
 
     def add_double(self, index, data):
         packed = struct.pack('d', data)
@@ -85,7 +142,7 @@ class LocalVars(object):
     def get_double(self, index):
         first = self.__get_num_from_item(index)
         last = self.__get_num_from_item(index + 1)
-        return struct.unpack('d', first + last)
+        return struct.unpack('d', first + last)[0]
 
     def add_ref(self, index, ref):
         self.__add_ref_to_item(index, ref)
@@ -98,12 +155,21 @@ class Entry(object):
     def __init__(self, data):
         self.data = data
 
+    def __str__(self):
+        return str(self.data)
+
 
 # 操作数栈 TODO: 暂时不区分数据类型，靠调用者保证
 class OperandStack(object):
     def __init__(self, size):
         self.__size = size
         self.__stack = Stack()
+
+    def size(self):
+        return self.__size
+
+    def print_state(self):
+        self.__stack.print_state()
 
     def push(self, data):
         entry = Entry(data)
@@ -136,6 +202,13 @@ class OperandStack(object):
     def pop_double(self):
         return self.pop()
 
+    def __str__(self):
+        s = ''
+        for i in self.__stack.items():
+            s += str(i)
+            s += '\n'
+        return s
+
 
 class DynamicLinking(object):
     def __init__(self):
@@ -162,5 +235,5 @@ def test_main():
 
 
 if __name__ == "__main__":
-    # test_local_var()
-    test_main()
+    test_local_var()
+    # test_main()

@@ -17,6 +17,7 @@ Thread {
     LocalVars
     OperandStack
     DynamicLinking
+    Method
   }
 }
 
@@ -32,6 +33,11 @@ MethodArea {
 }
 
 ### 指令集和解释器  
+invokestatic：调用静态方法；
+invokespecial：调用实例构造方法<init>，私有方法和父类方法；
+invokevirtual：调用虚方法；
+invokeinterface：调用接口方法，在运行时再确定一个实现此接口的对象；
+invokedynamic：在运行时动态解析出调用点限定符所引用的方法之后，调用该方法；
 ### 类和对象  
 ### 方法调用  
 ### 数组  
@@ -57,3 +63,4 @@ MethodArea {
 
 Java 虚拟机为每个类型都维护一个常量池
 当类或接口创建时(§5.3)，它的二进制表示中的 constant_pool 表(§4.4)被用来构 造运行时常量池。
+

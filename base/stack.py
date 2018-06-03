@@ -1,9 +1,17 @@
 # coding=utf-8
 
+from base.utils.print_utils import print_msg
+
 
 class Stack(object):
     def __init__(self):
         self.__items = []
+
+    def items(self):
+        return self.__items
+
+    def print_state(self):
+        print_msg(self.__items)
 
     def push(self, data):
         self.__items.append(data)

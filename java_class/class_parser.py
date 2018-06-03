@@ -191,6 +191,7 @@ class ClassParser:
             attribute_length = self.reader.read_b4()
             attr_name = tmp_class.constant_pool[common_utils.get_int_from_bytes(attribute_name_index)]
             attr_name = common_utils.get_string_from_bytes(attr_name.bytes)
+            # TODO: 重构一下这个地方，有点乱看着
             if attr_name == BaseAttribute.ATTR_CONSTANT_VALUE:
                 attr = ConstantValueAttribute()
                 attr.attribute_name_index = attribute_name_index
@@ -216,6 +217,12 @@ class ClassParser:
                 attr.attribute_name_index = attribute_name_index
                 attr.attribute_length = attribute_length
                 attr.sourcefile_index = self.reader.read_b2()
+                attributes.append(attr)
+            elif attr_name == BaseAttribute.ATTR_SIGNATURE:
+                attr = SignatureAttribute()
+                attr.attribute_name_index = attribute_name_index
+                attr.attribute_length = attribute_length
+                attr.signature_index = self.reader.read_b2()
                 attributes.append(attr)
             else:  # 不认识的属性跳过
                 self.reader.read_bn(common_utils.get_int_from_bytes(attribute_length))
