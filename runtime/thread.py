@@ -1,18 +1,31 @@
 # coding=utf-8
 
 from base.stack import Stack
-from base.utils.print_utils import print_msg
+from base.utils.print_utils import print_jvm_status
 import struct
 
 
+# 这个 thread 是抽象的 thread
 class Thread(object):
+    __thread_pool = []
+
     def __init__(self):
         self.pc = 0
         self.stack = JavaStack()
 
     @staticmethod
     def new_thread():
-        return Thread()
+        t = Thread()
+        Thread.__thread_pool.append(t)
+        return t
+
+    @staticmethod
+    def finish_thread(t):
+        Thread.__thread_pool.remove(t)
+
+    @staticmethod
+    def all_thread():
+        return Thread.__thread_pool
 
     def add_frame(self, frame):
         self.stack.add_frame(frame)
@@ -25,6 +38,9 @@ class Thread(object):
 
     def has_frame(self):
         return self.stack.has_frame()
+
+    def all_frames(self):
+        return self.stack.all_frames()
 
 
 class JavaStack(object):
@@ -43,6 +59,9 @@ class JavaStack(object):
     def top_frame(self):
         return self.__frames[len(self.__frames) - 1]
 
+    def all_frames(self):
+        return self.__frames
+
 
 class Frame(object):
     def __init__(self, thread, method):
@@ -56,21 +75,18 @@ class Frame(object):
         self.dynamic_linking = DynamicLinking()
 
     def print_cur_state(self):
-        print_msg('max_stack: ' + str(self.max_stack))
-        print_msg('max_locals: ' + str(self.max_locals))
-        print_msg('operand_stack: ' + str(self.operand_stack.size()))
-        print_msg(self.operand_stack)
-        print_msg('local_vars: ' + str(self.local_vars.size()))
-        print_msg(self.local_vars)
+        print_jvm_status('max_stack: ' + str(self.max_stack))
+        print_jvm_status('max_locals: ' + str(self.max_locals))
+        print_jvm_status('operand_stack: ' + str(self.operand_stack.size()))
+        print_jvm_status(self.operand_stack)
+        print_jvm_status('local_vars: ' + str(self.local_vars.size()))
+        print_jvm_status(self.local_vars)
 
 
 class Slot(object):
     def __init__(self):
         self.num = None
         self.ref = None
-
-    def __str__(self):
-        return str(self.num)
 
 
 # 局部变量表
@@ -92,7 +108,7 @@ class LocalVars(object):
         return self.__size
 
     def print_state(self):
-        print_msg(self.__items)
+        print_jvm_status(self.__items)
 
     def test_get_items(self):
         return self.__items
@@ -171,6 +187,9 @@ class OperandStack(object):
     def print_state(self):
         self.__stack.print_state()
 
+    def top(self):
+        return self.__stack.peek().data
+
     def push(self, data):
         entry = Entry(data)
         self.__stack.push(entry)
@@ -201,6 +220,15 @@ class OperandStack(object):
 
     def pop_double(self):
         return self.pop()
+
+    def push_ref(self, ref):
+        self.push(ref)
+
+    def pop_ref(self):
+        return self.pop()
+
+    def get_all_data(self):
+        return self.__stack.items()
 
     def __str__(self):
         s = ''

@@ -10,8 +10,7 @@ def main():
     j_class = loader.load_class('Hello')
     print(j_class)
     method = j_class.get_main_method()
-    m_interpreter = interpreter.Interpreter()
-    m_interpreter.run(method)
+    interpreter.Interpreter.exec_method(method)
 
 if __name__ == '__main__':
     main()

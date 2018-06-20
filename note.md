@@ -64,3 +64,9 @@ invokedynamic：在运行时动态解析出调用点限定符所引用的方法�
 Java 虚拟机为每个类型都维护一个常量池
 当类或接口创建时(§5.3)，它的二进制表示中的 constant_pool 表(§4.4)被用来构 造运行时常量池。
 
+
+### TODO
+class_loader 读取 jar zip 文件
+自己的 rt.jar  // test/java/ 目录相当于是把
+类变量操作
+gc

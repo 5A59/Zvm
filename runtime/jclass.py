@@ -3,6 +3,7 @@
 from base.utils import common_utils, print_utils
 from java_class.class_file import *
 from java_class.class_parser import ClassParser
+from runtime.thread import Slot
 # from runtime.class_loader import ClassLoader
 
 import os
@@ -10,21 +11,69 @@ import os
 
 # 对应 java 中的 Class
 class JClass(object):
+    ACC_PUBLIC = 0x0001
+    ACC_PRIVATE = 0x0002
+    ACC_PROTECTED = 0x0004
+    ACC_STATIC = 0x0008
+    ACC_FINAL = 0x0010
+    ACC_VOLATILE = 0x0040
+    ACC_TRANSIENT = 0x0080
+    ACC_SYNTHETIC = 0x1000
+    ACC_ENUM = 0x4000
+
+    @staticmethod
+    def is_public(flag):
+        return flag & JClass.ACC_PUBLIC != 0
+
+    @staticmethod
+    def is_private(flag):
+        return flag & JClass.ACC_PRIVATE != 0
+
+    @staticmethod
+    def is_static(flag):
+        return flag & JClass.ACC_STATIC != 0
+
     def __init__(self):
         self.access_flag = None
-        self.super_class = None  # JClass
+        self.name = None
+        self.super_class_name = None
         self.interfaces = None
         self.fields = None
         self.methods = None
         self.constant_pool = None
+        self.class_loader = None
+        self.static_fields = None  # map{ name: Slot }
+        self.has_inited = False
 
     def new_jclass(self, class_file):
         self.access_flag = common_utils.get_int_from_bytes(class_file.access_flag)
-        self.super_class = None  # 从方法区取
         self.constant_pool = ConstantPool.new_constant_pool(class_file)
         self.fields = Field.new_fields(class_file.fields, self.constant_pool.constants)
         self.methods = Method.new_methods(self, class_file.methods, self.constant_pool.constants)
+        super_class = self.constant_pool.constants[common_utils.get_int_from_bytes(class_file.super_class)]
+        if super_class is not None:
+            self.super_class_name = super_class.class_name  # 从方法区取
         self.interfaces = None
+        self.static_fields = {}
+        for sf in self.__get_static_fields():
+            desc = sf.descriptor
+            slot = Slot()
+            if desc == 'B' or desc == 'I' or desc == 'J' or desc == 'S' or desc == 'Z':
+                slot.num = 0
+            elif desc == 'C':
+                slot.num = '0'
+            elif desc == 'F':
+                slot.num = 0.0
+            elif desc == 'D':
+                slot.num = 0.0
+            self.static_fields[sf.name] = slot
+
+    def get_instance_fields(self):
+        return [field for field in self.fields if not JClass.is_static(field.access_flag)]
+
+    # return Field[]
+    def __get_static_fields(self):
+        return [field for field in self.fields if JClass.is_static(field.access_flag)]
 
     def get_main_method(self):
         methods = self.methods
@@ -54,17 +103,25 @@ class ConstantPool(object):
             elif isinstance(cp, StringInfo):
                 st = r_cp[common_utils.get_int_from_bytes(cp.string_index)]
                 st = common_utils.get_string_from_bytes(st.bytes)
-                constants.append(st)
+                jstring = JString()
+                jstring.data = st
+                constants.append(jstring)
             elif isinstance(cp, IntegerInfo):
-                constants.append(common_utils.get_int_from_bytes(cp.bytes))
+                jint = JInteger()
+                jint.data = common_utils.get_int_from_bytes(cp.bytes)
+                constants.append(jint)
             elif isinstance(cp, FloatInfo):
-                constants.append(common_utils.get_float_from_bytes(cp.bytes))
+                jfloat = JFloat()
+                jfloat.data = common_utils.get_float_from_bytes(cp.bytes)
+                constants.append(jfloat)
             elif isinstance(cp, LongInfo):
-                constants.append(common_utils.get_double_from_bytes(cp.high_bytes, cp.low_bytes))
-                constants.append(None)
+                jlong = JLong()
+                jlong.data = common_utils.get_long_from_bytes(cp.high_bytes, cp.low_bytes)
+                constants.append(jlong)
             elif isinstance(cp, DoubleInfo):
-                constants.append(common_utils.get_double_from_bytes(cp.high_bytes, cp.low_bytes))
-                constants.append(None)
+                jdouble = JDouble()
+                jdouble.data = common_utils.get_double_from_bytes(cp.high_bytes, cp.low_bytes)
+                constants.append(jdouble)
             elif isinstance(cp, NameAndTypeInfo):
                 constants.append(None)
             elif isinstance(cp, Utf8Info):
@@ -93,6 +150,7 @@ class Field(object):
         self.access_flag = None
         self.name = None
         self.descriptor = None
+        self.descriptor_index = None
         self.constant_value_index = None
         self.signature = None  # 记录范型变量
         self.type = None  # JClass
@@ -104,7 +162,8 @@ class Field(object):
             nf = Field()
             nf.access_flag = common_utils.get_int_from_bytes(f.access_flags)
             nf.name = constant_pool[common_utils.get_int_from_bytes(f.name_index)]
-            nf.descriptor = constant_pool[common_utils.get_int_from_bytes(f.descriptor_index)]
+            nf.descriptor_index = common_utils.get_int_from_bytes(f.descriptor_index)
+            nf.descriptor = constant_pool[nf.descriptor_index]
             attr = get_attribute(f.attributes, constant_pool, 'ConstantValue')
             if attr is not None:
                 nf.constant_value_index = common_utils.get_int_from_bytes(attr.constant_value_index)
@@ -176,13 +235,20 @@ class Method(object):
         return arg_desc
 
 
-
-
 class Ref(object):
     def __init__(self):
         self.cp = None
         self.class_name = None
         self.cache_class = None  # JClass
+
+    def resolve_class(self, class_loader):
+        if self.cache_class is not None:
+            return self.cache_class
+        if class_loader is None:
+            class_loader = ClassLoader.default_class_loader()
+        self.cache_class = class_loader.load_class(self.class_name)
+        self.cache_class.class_loader = class_loader
+        return self.cache_class
 
 
 class ClassRef(Ref):
@@ -229,6 +295,18 @@ class FieldRef(MemberRef):
         fr.descriptor = MemberRef.get_string(cp, name_and_type.descriptor_index)
         return fr
 
+    def resolve_field(self, class_loader):
+        if self.field is not None:
+            return self.field
+        if self.cache_class is None:
+            self.resolve_class(class_loader)
+        fields = self.cache_class.fields
+        for f in fields:
+            if f.name == self.name:
+                self.field = f
+                break
+        return self.field
+
 
 class MethodRef(MemberRef):
     def __init__(self):
@@ -246,32 +324,76 @@ class MethodRef(MemberRef):
         mr.descriptor = MemberRef.get_string(cp, name_and_type.descriptor_index)
         return mr
 
-    def resolve_class(self):
-        if self.cache_class is not None:
-            return self.cache_class
-        class_loader = ClassLoader.default_class_loader()
-        self.cache_class = class_loader.load_class(self.class_name)
-        return self.cache_class
-
-    # TODO: 函数处理
-    def resolve_method(self):
+    # TODO: 方法权限等的处理
+    def resolve_method(self, class_loader):
         if self.method is not None:
             return self.method
         if self.cache_class is None:
-            self.resolve_class()
+            self.resolve_class(class_loader)
         methods = self.cache_class.methods
         for m in methods:
-            if m.name == self.name:
+            if m.name == self.name and m.descriptor == self.descriptor:
                 self.method = m
                 break
         return self.method
+
+    def resolve_method_with_super(self, class_loader):
+        self.resolve_method(class_loader)
+        if self.method is None:
+            super_class_name = self.cache_class.super_class_name
+            while super_class_name is not None:
+                super_class = class_loader.load_class(super_class_name)
+                super_class.class_loader = class_loader
+                for m in super_class.methods:
+                    if m.name == self.name:
+                        self.method = m
+                        break
+                if self.method is not None:
+                    break
+        return self.method
+
+
+class BaseType(object):
+    def __init__(self):
+        self.data = None
+
+
+class JInteger(BaseType):
+    def __init__(self):
+        super(JInteger, self).__init__()
+
+
+class JFloat(BaseType):
+    def __init__(self):
+        super(JFloat, self).__init__()
+
+
+class JLong(BaseType):
+    def __init__(self):
+        super(JLong, self).__init__()
+
+
+class JDouble(BaseType):
+    def __init__(self):
+        super(JDouble, self).__init__()
+
+
+class JString(BaseType):
+    def __init__(self):
+        super(JString, self).__init__()
 
 
 # TODO: 感觉还是应该分一个包出去
 class ClassLoader(object):
     def __init__(self):
+        self.__loading_classes = []
         self.__loaded_classes = {}
         self.pkg_path = ['./']
+        self.hack()
+
+    def hack(self):
+        # 先提前 load
+        self.load_class('java/lang/Object')
 
     @staticmethod
     def default_class_loader():
@@ -282,24 +404,49 @@ class ClassLoader(object):
 
     # TODO: jar zip 处理
     def load_class(self, class_name):
+        # TODO: load class 线程之间同步 暂时轮询
+        if class_name in self.__loading_classes:
+            while True:
+                if class_name not in self.__loading_classes:
+                    break
         if class_name in self.__loaded_classes:
             return self.__loaded_classes[class_name]
-        return self.__load_class(class_name)
+        jclass = self.__load_class(class_name)
+        self.__loading_classes.remove(class_name)
+        return jclass
 
     def __load_class(self, class_name):
+        self.__loading_classes.append(class_name)
+        if class_name[0] == '[':
+            return self.__load_array_class(class_name)
         for path in self.pkg_path:
             class_path = path + class_name.replace('.', '/') + '.class'
             if not os.path.exists(class_path):
                 continue
-            print_utils.print_msg('load class: ' + class_path)
-            jclass = self.define_class(class_path)
+            print_utils.print_jvm_status('load class: ' + class_path)
+            jclass = self.define_class(class_name, class_path)
             self.__loaded_classes[class_name] = jclass
             return jclass
         return None
 
-    def define_class(self, path):
+    def __load_array_class(self, class_name):
+        jclass = JClass()
+        jclass.super_class_name = 'java/lang/Object'
+        jclass.class_loader = self
+        jclass.has_inited = True
+        jclass.name = class_name
+        self.__loaded_classes[class_name] = jclass
+
+    def define_class(self, class_name, path):
         parser = ClassParser(path)
         parser.parse()
         jclass = JClass()
+        jclass.name = class_name
         jclass.new_jclass(parser.class_file)
+        self.load_super_class(jclass)
         return jclass
+
+    def load_super_class(self, jclass):
+        if jclass.super_class_name == 'java/lang/Object' or jclass.super_class_name is None:
+            return
+        self.load_class(jclass.super_class_name)

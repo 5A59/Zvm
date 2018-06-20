@@ -1,6 +1,6 @@
 # coding=utf-8
 
-from base.utils.print_utils import print_msg
+from base.utils.print_utils import print_jvm_status
 
 
 class Stack(object):
@@ -11,7 +11,7 @@ class Stack(object):
         return self.__items
 
     def print_state(self):
-        print_msg(self.__items)
+        print_jvm_status(self.__items)
 
     def push(self, data):
         self.__items.append(data)

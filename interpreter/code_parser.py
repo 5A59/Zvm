@@ -29,3 +29,6 @@ class CodeParser(object):
         op = self.code[self.pc]
         self.pc += 1
         return op
+
+    def jump_by(self, off):
+        self.pc += off

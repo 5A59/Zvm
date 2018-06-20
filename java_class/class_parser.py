@@ -52,7 +52,12 @@ class ClassParser:
 
     def read_constant_pool(self):
         constant_pool = [None]  # constant_pool 第 0 个元素无用
+        skip = False
         for i in range(common_utils.get_int_from_bytes(self.class_file.constant_pool_count) - 1):
+            if skip:  # long double 占两个槽
+                constant_pool.append(None)
+                skip = False
+                continue
             info = None
             tag = self.reader.read_b1()
             if tag == ConstantPoolBaseInfo.CONSTANT_CLASS:
@@ -91,11 +96,13 @@ class ClassParser:
                 info.tag = tag
                 info.high_bytes = self.reader.read_b4()
                 info.low_bytes = self.reader.read_b4()
+                skip = True
             elif tag == ConstantPoolBaseInfo.CONSTANT_DOUBLE:
                 info = DoubleInfo()
                 info.tag = tag
                 info.high_bytes = self.reader.read_b4()
                 info.low_bytes = self.reader.read_b4()
+                skip = True
             elif tag == ConstantPoolBaseInfo.CONSTANT_NAME_AND_TYPE:
                 info = NameAndTypeInfo()
                 info.tag = tag
@@ -123,7 +130,7 @@ class ClassParser:
 
             if info is not None:
                 constant_pool.append(info)
-            self.class_file.constant_pool = constant_pool
+        self.class_file.constant_pool = constant_pool
 
     def read_access_flags(self):
         self.class_file.access_flag = self.reader.read_b2()
@@ -226,6 +233,7 @@ class ClassParser:
                 attributes.append(attr)
             else:  # 不认识的属性跳过
                 self.reader.read_bn(common_utils.get_int_from_bytes(attribute_length))
+                attributes.append(None)
         return attributes
 
     def read_exception_table(self, length):
