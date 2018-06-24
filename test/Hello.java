@@ -86,6 +86,7 @@ public class Hello {
     public static void testClass() {
         T t = new T();
         t.m = 1;
+        t.not.n = 3;
         System.out.println(t.m);
         t.test1();
         
@@ -242,6 +243,7 @@ public class Hello {
     }
 
     public static class NOT {
+        public int n = 0;
     }
 
     public static class T extends T1 {
