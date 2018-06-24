@@ -2,6 +2,7 @@
 
 from runtime.thread import Slot
 from base.utils import error_handler
+import runtime.heap as heap
 
 
 # 对应 java 中的实例对象
@@ -17,9 +18,23 @@ class JObject(object):
     @staticmethod
     def new_object(jclass):
         jobject = JObject()
+        jobject.type = JObject.TYPE_OBJ
         jobject.jclass = jclass
         jobject.data = {}
-        for field in jobject.jclass.get_instance_fields():
+        JObject.collect_fields(jobject.jclass, jobject.data, False)
+
+        # 收集父类 field
+        super_class = jobject.jclass.super_class
+        while super_class is not None:
+            JObject.collect_fields(super_class, jobject.data, True)
+            super_class = super_class.super_class
+        return jobject
+
+    @staticmethod
+    def collect_fields(jclass, data, filter_private):
+        for field in jclass.get_instance_fields():
+            if filter_private and field.is_private():
+                continue
             desc = field.descriptor
             slot = Slot()
             if desc == 'B' or desc == 'I' or desc == 'J' or desc == 'S' or desc == 'Z':
@@ -30,8 +45,7 @@ class JObject(object):
                 slot.num = 0.0
             elif desc == 'D':
                 slot.num = 0.0
-            jobject.data[field.name] = slot
-        return jobject
+            data[field.name] = slot
 
     def get_field(self, name):
         self.__check_name(name)
@@ -60,22 +74,31 @@ class JRef(object):
         self.handler = JHandler(obj)
 
     @staticmethod
+    def check_null(jref):
+        if jref is not None and jref.handler is not None and jref.handler.obj is not None:
+            return False
+        return True
+
+    @staticmethod
     def new_object(jclass):
         # TODO: obj 放入 gc 堆
         obj = JObject.new_object(jclass)
         jref = JRef(obj)
+        heap.Heap.new_ref(jref)
         return jref
 
     @staticmethod
     def new_array(jclass, atype, count):
         array = JArray.new_array(jclass, atype, count)
         jref = JRef(array)
+        heap.Heap.new_ref(jref)
         return jref
 
     @staticmethod
     def new_ref_array(jclass, type_class_ref, count):
         array = JArray.new_ref_array(jclass, type_class_ref, count)
         jref = JRef(array)
+        heap.Heap.new_ref(jref)
         return jref
 
     def clone(self):
@@ -152,6 +175,7 @@ class JArray(JObject):
     @staticmethod
     def new_array(jclass, atype, length):
         jarray = JArray()
+        jarray.type = JObject.TYPE_ARRAY
         jarray.jclass = jclass
         jarray.length = length
         jarray.atype = atype
@@ -164,6 +188,7 @@ class JArray(JObject):
     @staticmethod
     def new_ref_array(jclass, type_class_ref, length):
         jarray = JArray()
+        jarray.type = JObject.TYPE_ARRAY
         jarray.jclass = jclass
         jarray.length = length
         jarray.atype = JArray.T_REF

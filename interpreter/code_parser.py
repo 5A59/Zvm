@@ -32,3 +32,15 @@ class CodeParser(object):
 
     def jump_by(self, off):
         self.pc += off
+
+    # switch 指令使用  使得地址都是 4 的倍数
+    def skip_padding(self):
+        while self.pc % 4 != 0:
+            self.read_op()
+
+    def read_4byte(self):
+        byte1 = self.read_op()
+        byte2 = self.read_op()
+        byte3 = self.read_op()
+        byte4 = self.read_op()
+        return (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4

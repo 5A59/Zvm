@@ -32,9 +32,9 @@ class Interpreter(object):
             print_utils.print_jvm_status('ins_code: %x' % ins_code)
             ins = instruction.get_instruction(ins_code)
             ins.read_operands(code_parser)
+            thread.pc = frame.pc  # 保存上一条 pc
             frame.pc = code_parser.pc
             ins.execute_wrapper(frame)
-            thread.pc = frame.pc  # 主要是恢复 pc 用的
 
         print_utils.print_jvm_status('\n=================== output =====================')
         print_utils.StreamPrinter.print_all(thread)

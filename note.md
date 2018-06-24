@@ -66,7 +66,22 @@ Java 虚拟机为每个类型都维护一个常量池
 
 
 ### TODO
-class_loader 读取 jar zip 文件
-自己的 rt.jar  // test/java/ 目录相当于是把
-类变量操作
-gc
+gc done   
+jvm 指令  
+instanceof
+加减乘除...
+try catch
+
+类继承中 方法，变量的寻找 done  
+方法，变量验证  done  
+
+print  println  
+class_loader 读取 jar zip 文件  
+命令行工具  
+自己的 rt.jar  // test/java/ 目录相当于是把  
+
+**先不做的**  
+vtable
+native 方法  
+多维数组
+异常处理

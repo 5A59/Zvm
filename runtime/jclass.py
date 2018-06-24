@@ -4,6 +4,7 @@ from base.utils import common_utils, print_utils
 from java_class.class_file import *
 from java_class.class_parser import ClassParser
 from runtime.thread import Slot
+from runtime.heap import Heap
 # from runtime.class_loader import ClassLoader
 
 import os
@@ -37,6 +38,7 @@ class JClass(object):
         self.access_flag = None
         self.name = None
         self.super_class_name = None
+        self.super_class = None
         self.interfaces = None
         self.fields = None
         self.methods = None
@@ -46,6 +48,7 @@ class JClass(object):
         self.has_inited = False
 
     def new_jclass(self, class_file):
+        Heap.new_jclass(self)
         self.access_flag = common_utils.get_int_from_bytes(class_file.access_flag)
         self.constant_pool = ConstantPool.new_constant_pool(class_file)
         self.fields = Field.new_fields(class_file.fields, self.constant_pool.constants)
@@ -155,6 +158,27 @@ class Field(object):
         self.signature = None  # 记录范型变量
         self.type = None  # JClass
 
+    def is_public(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PUBLIC)
+
+    def is_protected(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PROTECTED)
+
+    def is_private(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PRIVATE)
+
+    def is_static(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_STATIC)
+
+    def is_final(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_FINAL)
+
+    def is_volatile(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_VOLATILE)
+
+    def is_transient(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_TRANSIENT)
+
     @staticmethod
     def new_fields(cf_fields, constant_pool):
         fields = []
@@ -196,7 +220,14 @@ class Method(object):
             nm.max_stack = common_utils.get_int_from_bytes(attr.max_stack)
             nm.max_locals = common_utils.get_int_from_bytes(attr.max_locals)
             nm.code = attr.code
-            nm.exceptions = attr.exception_table
+            nm.exceptions = []
+            for ex in attr.exception_table:
+                jex = JException()
+                jex.start_pc = common_utils.get_int_from_bytes(ex.start_pc)
+                jex.end_pc = common_utils.get_int_from_bytes(ex.end_pc)
+                jex.handler_pc = common_utils.get_int_from_bytes(ex.handler_pc)
+                jex.catch_type = common_utils.get_int_from_bytes(ex.catch_type)
+                nm.exceptions.append(jex)
             nm.arg_desc = Method.get_arg_desc(nm.descriptor)
             methods.append(nm)
         return methods
@@ -235,18 +266,28 @@ class Method(object):
         return arg_desc
 
 
+class JException(object):
+    def __init__(self):
+        self.start_pc = 0
+        self.end_pc = 0
+        self.handler_pc = 0
+        self.catch_type = 0
+
+
 class Ref(object):
     def __init__(self):
         self.cp = None
         self.class_name = None
         self.cache_class = None  # JClass
 
-    def resolve_class(self, class_loader):
-        if self.cache_class is not None:
+    def resolve_class(self, class_loader, need_re_resolve=False, class_name=None):
+        if self.cache_class is not None and not need_re_resolve:
             return self.cache_class
         if class_loader is None:
             class_loader = ClassLoader.default_class_loader()
-        self.cache_class = class_loader.load_class(self.class_name)
+        if class_name is None:
+            class_name = self.class_name
+        self.cache_class = class_loader.load_class(class_name)
         self.cache_class.class_loader = class_loader
         return self.cache_class
 
@@ -269,6 +310,13 @@ class MemberRef(Ref):
         super(MemberRef, self).__init__()
         self.name = None
         self.descriptor = None
+        self.access_flag = None
+
+    @staticmethod
+    def check_state(flag, state):
+        if flag is None:
+            return False
+        return (flag & state) != 0
 
     @staticmethod
     def get_string(cp, index_byte):
@@ -280,9 +328,40 @@ class MemberRef(Ref):
 
 
 class FieldRef(MemberRef):
+    ACC_PUBLIC = 0x0001
+    ACC_PRIVATE = 0x0002
+    ACC_PROTECTED = 0x0004
+    ACC_STATIC = 0x0008
+    ACC_FINAL = 0x0010
+    ACC_VOLATILE = 0x0040
+    ACC_TRANSIENT = 0x0080
+    ACC_SYNTHETIC = 0x1000
+    ACC_ENUM = 0x4000
+
     def __init__(self):
         super(FieldRef, self).__init__()
         self.field = None
+
+    def is_public(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PUBLIC)
+
+    def is_protected(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PROTECTED)
+
+    def is_private(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_PRIVATE)
+
+    def is_static(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_STATIC)
+
+    def is_final(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_FINAL)
+
+    def is_volatile(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_VOLATILE)
+
+    def is_transient(self):
+        return MemberRef.check_state(self.access_flag, FieldRef.ACC_TRANSIENT)
 
     @staticmethod
     def new_field_ref(cp, field_ref_info):
@@ -325,11 +404,11 @@ class MethodRef(MemberRef):
         return mr
 
     # TODO: 方法权限等的处理
-    def resolve_method(self, class_loader):
-        if self.method is not None:
+    def resolve_method(self, class_loader, need_re_resolve=False, class_name=None):
+        if self.method is not None and not need_re_resolve:
             return self.method
-        if self.cache_class is None:
-            self.resolve_class(class_loader)
+        if self.cache_class is None or need_re_resolve:
+            self.resolve_class(class_loader, need_re_resolve, class_name)
         methods = self.cache_class.methods
         for m in methods:
             if m.name == self.name and m.descriptor == self.descriptor:
@@ -338,18 +417,31 @@ class MethodRef(MemberRef):
         return self.method
 
     def resolve_method_with_super(self, class_loader):
-        self.resolve_method(class_loader)
+        self.resolve_method(class_loader, True)
         if self.method is None:
-            super_class_name = self.cache_class.super_class_name
-            while super_class_name is not None:
-                super_class = class_loader.load_class(super_class_name)
-                super_class.class_loader = class_loader
+            super_class = self.cache_class.super_class
+            while super_class is not None:
                 for m in super_class.methods:
                     if m.name == self.name:
                         self.method = m
                         break
                 if self.method is not None:
                     break
+                super_class = super_class.super_class
+        return self.method
+
+    def re_resolve_method_with_super_by_class_name(self, class_loader, class_name):
+        self.resolve_method(class_loader, True, class_name)
+        if self.method is None:
+            super_class = self.cache_class.super_class
+            while super_class is not None:
+                for m in super_class.methods:
+                    if m.name == self.name:
+                        self.method = m
+                        break
+                if self.method is not None:
+                    break
+                super_class = super_class.super_class
         return self.method
 
 
@@ -385,11 +477,16 @@ class JString(BaseType):
 
 # TODO: 感觉还是应该分一个包出去
 class ClassLoader(object):
+    default_loader = None
+
     def __init__(self):
-        self.__loading_classes = []
-        self.__loaded_classes = {}
+        self._loading_classes = []
+        self._loaded_classes = {}
         self.pkg_path = ['./']
         self.hack()
+
+    def get_all_loaded_class(self):
+        return self._loading_classes
 
     def hack(self):
         # 先提前 load
@@ -397,7 +494,10 @@ class ClassLoader(object):
 
     @staticmethod
     def default_class_loader():
-        return ClassLoader()
+        # TODO: 线程同步
+        if ClassLoader.default_loader is None:
+            ClassLoader.default_loader = ClassLoader()
+        return ClassLoader.default_loader
 
     def add_path(self, path):
         self.pkg_path.append(path)
@@ -405,18 +505,18 @@ class ClassLoader(object):
     # TODO: jar zip 处理
     def load_class(self, class_name):
         # TODO: load class 线程之间同步 暂时轮询
-        if class_name in self.__loading_classes:
+        if class_name in self._loading_classes:
             while True:
-                if class_name not in self.__loading_classes:
+                if class_name not in self._loading_classes:
                     break
-        if class_name in self.__loaded_classes:
-            return self.__loaded_classes[class_name]
+        if class_name in self._loaded_classes:
+            return self._loaded_classes[class_name]
         jclass = self.__load_class(class_name)
-        self.__loading_classes.remove(class_name)
+        self._loading_classes.remove(class_name)
         return jclass
 
     def __load_class(self, class_name):
-        self.__loading_classes.append(class_name)
+        self._loading_classes.append(class_name)
         if class_name[0] == '[':
             return self.__load_array_class(class_name)
         for path in self.pkg_path:
@@ -425,7 +525,7 @@ class ClassLoader(object):
                 continue
             print_utils.print_jvm_status('load class: ' + class_path)
             jclass = self.define_class(class_name, class_path)
-            self.__loaded_classes[class_name] = jclass
+            self._loaded_classes[class_name] = jclass
             return jclass
         return None
 
@@ -435,7 +535,7 @@ class ClassLoader(object):
         jclass.class_loader = self
         jclass.has_inited = True
         jclass.name = class_name
-        self.__loaded_classes[class_name] = jclass
+        self._loaded_classes[class_name] = jclass
 
     def define_class(self, class_name, path):
         parser = ClassParser(path)
@@ -443,10 +543,10 @@ class ClassLoader(object):
         jclass = JClass()
         jclass.name = class_name
         jclass.new_jclass(parser.class_file)
-        self.load_super_class(jclass)
+        jclass.super_class = self.load_super_class(jclass)
         return jclass
 
     def load_super_class(self, jclass):
         if jclass.super_class_name == 'java/lang/Object' or jclass.super_class_name is None:
             return
-        self.load_class(jclass.super_class_name)
+        return self.load_class(jclass.super_class_name)

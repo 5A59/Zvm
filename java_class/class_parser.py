@@ -231,6 +231,15 @@ class ClassParser:
                 attr.attribute_length = attribute_length
                 attr.signature_index = self.reader.read_b2()
                 attributes.append(attr)
+            # TODO: 这个 Exception 和 code 里的 exception 有什么区别?
+            elif attr_name == BaseAttribute.ATTR_EXCEPTIONS:
+                # attr = ExceptionsAttribute()
+                # attr.attribute_name_index = attribute_name_index
+                # attr.attribute_length = attribute_length
+                # attr.number_of_exceptions = self.reader.read_b2()
+                # attributes.append(attr)
+                self.reader.read_bn(common_utils.get_int_from_bytes(attribute_length))
+                attributes.append(None)
             else:  # 不认识的属性跳过
                 self.reader.read_bn(common_utils.get_int_from_bytes(attribute_length))
                 attributes.append(None)

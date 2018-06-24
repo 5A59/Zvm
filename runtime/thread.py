@@ -2,6 +2,7 @@
 
 from base.stack import Stack
 from base.utils.print_utils import print_jvm_status
+import runtime
 import struct
 
 
@@ -110,7 +111,7 @@ class LocalVars(object):
     def print_state(self):
         print_jvm_status(self.__items)
 
-    def test_get_items(self):
+    def get_items(self):
         return self.__items
 
     def __add_num_to_item(self, index, data):
@@ -175,7 +176,7 @@ class Entry(object):
         return str(self.data)
 
 
-# 操作数栈 TODO: 暂时不区分数据类型，靠调用者保证
+# 操作数栈
 class OperandStack(object):
     def __init__(self, size):
         self.__size = size
@@ -187,36 +188,71 @@ class OperandStack(object):
     def print_state(self):
         self.__stack.print_state()
 
-    def top(self):
-        return self.__stack.peek().data
+    def clear(self):
+        self.__stack.clear()
+
+    # !!! notice !!!  如果是非 jref 的数据，这个方法返回的是封装后的 eg: int 返回的实际是 JInteger   主要是方便 push 使用
+    # 如果以后需要真实数据，再改吧
+    def top(self, index=None):
+        if index is None:
+            return self.__stack.peek().data
+        else:
+            return self.__stack.get_val_at(index).data
+
+    # 类型1 指的是占一个 slot 的类型: int, float, ref
+    def is_top_type1(self, index=None):
+        ref = None
+        if index is None:
+            ref = self.__stack.peek().data
+        else:
+            ref = self.__stack.get_val_at(index).data
+        if isinstance(ref, runtime.jclass.JInteger) or isinstance(ref, runtime.jclass.JFloat) \
+                or isinstance(ref, runtime.jclass.JRef):
+            return True
+        return False
 
     def push(self, data):
         entry = Entry(data)
         self.__stack.push(entry)
 
     def pop(self):
+        ref = self.__stack.pop().data
+        if isinstance(ref, runtime.jclass.JInteger) or isinstance(ref, runtime.jclass.JFloat) \
+                or isinstance(ref, runtime.jclass.JLong) or isinstance(ref, runtime.jclass.JDouble):
+            return ref.data
+        return ref
+
+    def pop_raw(self):
         return self.__stack.pop().data
 
     def push_int(self, data):
-        self.push(data)
+        jint = runtime.jclass.JInteger()
+        jint.data = data
+        self.push(jint)
 
     def pop_int(self):
         return self.pop()
 
     def push_long(self, data):
-        self.push(data)
+        jlong = runtime.jclass.JLong()
+        jlong.data = data
+        self.push(jlong)
 
     def pop_long(self):
         return self.pop()
 
     def push_float(self, data):
-        self.push(data)
+        jfloat = runtime.jclass.JFloat()
+        jfloat.data = data
+        self.push(jfloat)
 
     def pop_float(self):
         return self.pop()
 
     def push_double(self, data):
-        self.push(data)
+        jdouble = runtime.jclass.JDouble()
+        jdouble.data = data
+        self.push(jdouble)
 
     def pop_double(self):
         return self.pop()

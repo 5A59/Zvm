@@ -10,6 +10,9 @@ class Stack(object):
     def items(self):
         return self.__items
 
+    def get_val_at(self, index):
+        return self.__items[len(self.__items) - index - 1]
+
     def print_state(self):
         print_jvm_status(self.__items)
 
@@ -24,3 +27,6 @@ class Stack(object):
 
     def pop(self):
         return self.__items.pop()
+
+    def clear(self):
+        self.__items.clear()

@@ -284,6 +284,7 @@ class BaseAttribute(object):
     ATTR_CODE = 'Code'
     ATTR_SOURCE_FILE = 'SourceFile'
     ATTR_SIGNATURE = 'Signature'
+    ATTR_EXCEPTIONS = 'Exceptions'
 
     def __init__(self):
         self.attribute_name_index = None  # u2  对常量池的索引 utf8_info
@@ -346,3 +347,10 @@ class SignatureAttribute(BaseAttribute):
 
     def __str__(self):
         return 'SIGNATURE_ATTR{signature_index: %s}' % self.signature_index
+
+
+class ExceptionsAttribute(BaseAttribute):
+    def __init__(self):
+        super(ExceptionsAttribute, self).__init__()
+        self.number_of_exceptions = 0  # u2
+        self.exception_index_table = None  # index 数组，长度 number_of_exceptions
