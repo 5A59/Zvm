@@ -13,10 +13,6 @@
 方法二:
 直接工程导入 pycharm 运行 test.py 吧
 
-#### 运行展示
-![run1](./res/pic1.png)
-![run2](./res/pic2.png)
-
 #### 主要实现部分
 class 文件解析  
 类加载  
@@ -50,6 +46,10 @@ class_loader 读取 jar zip 文件
 <HotSpot 实战>
 <自己动手写 java 虚拟机>
 ...
+
+#### 运行展示
+![run1](./res/pic1.png)
+![run2](./res/pic2.png)
 
 #### LAST
 enjoy it
