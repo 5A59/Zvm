@@ -3,7 +3,9 @@ public class Hello {
     static int staticValue = 12;
     int tmp = 0;
     public static void main(String[] args) {
-        System.out.println("hello world");
+        System.out.println("=================");
+        System.out.println("Hello world");
+        System.out.println("=================");
         testPrint();
         test();
         testBase();
@@ -11,7 +13,9 @@ public class Hello {
         testThread();
         testClass();
         checkCast();
+
         // checkNull();
+
         testGC();
         testSwitch();
         testReturn();
@@ -197,7 +201,6 @@ public class Hello {
         tarray[0] = new T();
         tarray[0].m = 3;
         System.out.println(tarray[0].m);
-
     }
 
     public static T newT() {

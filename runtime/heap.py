@@ -47,6 +47,7 @@ class Heap(object):
     @staticmethod
     def gc():
         Heap._index = GC.start_gc(Heap._java_heap, Heap.collect_static_field())
+        GC.stop_gc()
 
 
 if __name__ == '__main__':

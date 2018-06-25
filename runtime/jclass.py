@@ -5,7 +5,7 @@ from java_class.class_file import *
 from java_class.class_parser import ClassParser
 from runtime.thread import Slot
 from runtime.heap import Heap
-# from runtime.class_loader import ClassLoader
+from base.jvm_config import jdk_path
 
 import os
 
@@ -482,7 +482,7 @@ class ClassLoader(object):
     def __init__(self):
         self._loading_classes = []
         self._loaded_classes = {}
-        self.pkg_path = ['./']
+        self.pkg_path = jdk_path
         self.hack()
 
     def get_all_loaded_class(self):
