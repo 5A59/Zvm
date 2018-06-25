@@ -23,6 +23,7 @@ public class Hello {
     }
 
     public static void testException() {
+        System.out.println("======== test exception =========");
         try {
             testException1();
         } catch(Exception ex) {
@@ -35,10 +36,12 @@ public class Hello {
     }
 
     public static void testPrint() {
+        System.out.println("======== test print =========");
         System.out.println(1);
     }
 
     public static void testReturn() {
+        System.out.println("======== test return =========");
         System.out.println(-100);
         T t = newT();
         System.out.println(t.n);
@@ -53,6 +56,7 @@ public class Hello {
     }
 
     public static void testSwitch() {
+        System.out.println("======== test switch =========");
         int i = 1;
         int b = switchTest(i);
         System.out.println(b);
@@ -75,6 +79,7 @@ public class Hello {
     }
 
     public static void testGC() {
+        System.out.println("======== test gc =========");
         testGC2();
         for (int i = 0; i < 9; i ++) {
             T t = new T();
@@ -88,6 +93,7 @@ public class Hello {
     }
 
     public static void testClass() {
+        System.out.println("======== test class =========");
         T t = new T();
         t.m = 1;
         t.not.n = 3;
@@ -99,6 +105,7 @@ public class Hello {
     }
 
     public static void testThread() {
+        System.out.println("======== test thread =========");
         Thread thread = new Thread() {
             public void run() {
                 for (int i = 0; i < 10; i ++) {
@@ -115,6 +122,7 @@ public class Hello {
     }
 
     public static void testBase() {
+        System.out.println("======== test base type =========");
         char c = 'c';
         System.out.println(c);
 
@@ -135,6 +143,7 @@ public class Hello {
     }
 
     public static void test() {
+        System.out.println("======== test operation ========");
         System.out.println("hello");
         int res = 1;
         int i = 10;
@@ -154,6 +163,7 @@ public class Hello {
     }
 
     public static void checkNull() {
+        System.out.println("======== test null check ========");
         T t = null;
         System.out.println(t.m);
         if (t == null) {
@@ -163,6 +173,7 @@ public class Hello {
     }
 
     public static void checkCast() {
+        System.out.println("======== test cast ========");
         T1 t = new T();
         if (t instanceof T) {
             T t1 = (T) t;
@@ -176,6 +187,7 @@ public class Hello {
     }
 
     public static void testArray() {
+        System.out.println("======== test  array ========");
         int[] array = {3, 4};
         System.out.println(array[0]);
         System.out.println(array.length);
