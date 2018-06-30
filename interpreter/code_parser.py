@@ -1,6 +1,7 @@
 # coding=utf-8
 
 from base.utils import print_utils, error_handler
+import ctypes
 
 
 class CodeParser(object):
@@ -43,4 +44,5 @@ class CodeParser(object):
         byte2 = self.read_op()
         byte3 = self.read_op()
         byte4 = self.read_op()
-        return (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4
+        byte = (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4
+        return ctypes.c_int32(byte).value
