@@ -43,9 +43,9 @@ class_loader 读取 jar zip 文件
 
 #### 参考资料
 <java 虚拟机规范>  
-<揭秘 java 虚拟机>
-<HotSpot 实战>
-<自己动手写 java 虚拟机>
+<揭秘 java 虚拟机>  
+<HotSpot 实战>  
+<自己动手写 java 虚拟机>  
 ...
 
 #### 运行展示
